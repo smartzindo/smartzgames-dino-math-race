@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dino Math Race</title>
+    <style>
+        /* =========================================================
+           CSS STYLES & LAYOUT
+           ========================================================= */
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap');
+
+        :root {
+            --primary: #4CAF50;
+            --primary-dark: #388E3C;
+            --secondary: #2196F3;
+            --bg-color: #81C784;
+            --text-light: #ffffff;
+            --text-dark: #333333;
+            --danger: #F44336;
+            --warning: #FFC107;
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.6);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none; /* Cegah scroll di HP */
+        }
+
+        #main-menu, #game-over-menu {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            transition: opacity 0.3s ease;
+        }
+
+        .menu-box {
+            background: var(--glass-bg);
+            border: 3px solid var(--glass-border);
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 90%;
+            animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        h1 {
+            color: var(--primary-dark);
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 0px rgba(255,255,255,0.8);
+        }
+
+        h2 { margin-bottom: 20px; color: var(--text-dark); }
+
+        .instructions {
+            background: rgba(255, 255, 255, 0.5);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+            text-align: left;
+            line-height: 1.4;
+            color: #444;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .btn {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            font-size: 1.5rem;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 900;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 15px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 var(--primary-dark);
+            transition: all 0.1s;
+            text-transform: uppercase;
+        }
+
+        .btn:active {
+            transform: translateY(5px);
+            box-shadow: 0 0px 0 var(--primary-dark);
+        }
+
+        .btn.blue { background: var(--secondary); box-shadow: 0 5px 0 #1976D2; }
+        .btn.blue:active { box-shadow: 0 0px 0 #1976D2; }
+
+        #global-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 50;
+            display: flex;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: rgba(255,255,255,0.8);
+            border: none;
+            border-radius: 50%;
+            width: 45px; height: 45px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        #game-container {
+            display: none; 
+            width: 100%;
+            height: 100%;
+            flex-direction: row; /* Layar Split Vertikal (Kiri-Kanan) Sejati */
+        }
+
+        .player-screen {
+            position: relative;
+            flex: 1;
+            height: 100%;
+            border-right: 4px solid rgba(0,0,0,0.25);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: opacity 0.3s ease, filter 0.3s ease;
+        }
+        .player-screen:last-child { border-right: none; }
+
+        /* Meredupkan layar player yang sedang menunggu giliran */
+        .player-screen.inactive {
+            opacity: 0.45;
+            filter: grayscale(50%);
+            pointer-events: none !important;
+        }
+
+        canvas {
+            flex: 1;
+            width: 100%;
+            display: block;
+            cursor: pointer;
+        }
+
+        .hud {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 95%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+            pointer-events: none; /* Pointer events dinonaktifkan di pembungkus luar HUD saja */
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 6px 15px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            margin-bottom: 6px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .lives-container {
+            color: #FF5252;
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+        }
+
+        .xp-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            max-width: 170px;
+            margin-left: 10px;
+        }
+
+        .xp-text {
+            font-size: 0.9rem;
+            color: #FFC107;
+            font-weight: 900;
+            white-space: nowrap;
+            min-width: 55px;
+            text-align: right;
+        }
+
+        .xp-bar-bg {
+            background: rgba(255,255,255,0.25);
+            border-radius: 6px;
+            height: 10px;
+            width: 100%;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.4);
+        }
+
+        .xp-bar-fill {
+            background: var(--secondary);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .question-panel {
+            background: var(--glass-bg);
+            border: 3px solid var(--glass-border);
+            padding: 10px 15px;
+            border-radius: 18px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+            pointer-events: auto; /* Aktifkan agar tombol pilihan bisa diklik langsung */
+        }
+
+        .question-text {
+            font-size: 2rem;
+            font-weight: 950;
+            color: #1B5E20;
+            margin-bottom: 8px;
+            text-shadow: 1px 1px 0px white;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .option-item {
+            background: #E8F5E9;
+            border: 2.5px solid #A5D6A7;
+            border-radius: 12px;
+            padding: 10px 4px;
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #2E7D32;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.08);
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.1s;
+        }
+
+        .option-item:hover {
+            background-color: #C8E6C9;
+        }
+
+        .option-item:active {
+            transform: scale(0.95);
+        }
+
+        .player-indicator {
+            background: var(--primary-dark);
+            color: white;
+            font-size: 0.75rem;
+            padding: 1px 8px;
+            border-radius: 6px;
+            font-weight: 900;
+            align-self: flex-start;
+            margin-bottom: 3px;
+        }
+
+        @media (max-width: 768px) {
+            .question-text { font-size: 1.4rem; margin-bottom: 4px; }
+            .option-item { font-size: 1.1rem; padding: 4px 2px; }
+            h1 { font-size: 2rem; }
+            .stats-bar { padding: 4px 10px; font-size: 0.8rem; }
+            .lives-container { font-size: 0.9rem; }
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.1); opacity: 0; }
+            60% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); }
+        }
+        
+        .shake {
+            animation: shake 0.5s;
+        }
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- GLOBAL CONTROLS -->
+    <div id="global-controls">
+        <button class="icon-btn" id="btn-bgm" onclick="toggleBGM()">🎵</button>
+        <button class="icon-btn" id="btn-fs" onclick="toggleFullScreen()">⛶</button>
+    </div>
+
+    <!-- MAIN MENU -->
+    <div id="main-menu">
+        <div class="menu-box">
+            <h1>🦖 Dino Math Race</h1>
+            <p style="margin-bottom: 15px; font-weight: bold; color: #555;">Balapan Berhitung Perkalian & Pembagian</p>
+            
+            <div class="instructions">
+                <strong>Cara Bermain:</strong><br>
+                • Klik/ketuk langsung tombol pilihan jawaban atau lajur batu yang benar.<br>
+                • Setiap jawaban benar bertambah <strong>10 XP</strong>. Jawab 10 soal dengan benar untuk mencapai finish!<br>
+                <strong>Kontrol Keyboard:</strong><br>
+                • Player 1: <strong>A, S, D, F</strong> (Lajur 1, 2, 3, 4)<br>
+                • Player 2: <strong>J, K, L, ;</strong> (Lajur 1, 2, 3, 4)
+            </div>
+
+            <button class="btn" onclick="startGame('solo')">Solo Mode 👤</button>
+            <button class="btn blue" onclick="startGame('duel')">Duel Mode 👥</button>
+        </div>
+    </div>
+
+    <!-- GAME OVER / WIN MENU -->
+    <div id="game-over-menu" class="hidden">
+        <div class="menu-box">
+            <h1 id="over-title" style="color: var(--danger)">Yah, Salah! 💥</h1>
+            <h2>Skor Kamu: <span id="final-score">0</span></h2>
+            <p id="game-over-msg" style="margin-bottom: 20px;"></p>
+            <button class="btn" onclick="backToMenu()">Menu Utama</button>
+            <button class="btn blue" onclick="restartGame()">Main Lagi 🔄</button>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <!-- Player 1 Screen -->
+        <div id="screen-p1" class="player-screen hidden">
+            <div class="hud">
+                <div class="stats-bar">
+                    <div class="player-indicator" id="ind-p1">P1</div>
+                    <div class="lives-container" id="lives-p1">❤️❤️❤️</div>
+                    <div class="xp-container">
+                        <span id="xp-text-p1" class="xp-text">0/100</span>
+                        <div class="xp-bar-bg">
+                            <div class="xp-bar-fill" id="xp-fill-p1" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="question-panel">
+                    <div class="question-text" id="q-p1">5 x 5 = ?</div>
+                    <div class="options-grid" id="opt-grid-p1">
+                        <div class="option-item">--</div>
+                        <div class="option-item">--</div>
+                        <div class="option-item">--</div>
+                        <div class="option-item">--</div>
+                    </div>
+                </div>
+            </div>
+            <canvas id="canvas-p1"></canvas>
+        </div>
+
+        <!-- Player 2 Screen -->
+        <div id="screen-p2" class="player-screen hidden">
+            <div class="hud">
+                <div class="stats-bar">
+                    <div class="player-indicator" id="ind-p2" style="background-color: var(--secondary)">P2</div>
+                    <div class="lives-container" id="lives-p2">❤️❤️❤️</div>
+                    <div class="xp-container">
+                        <span id="xp-text-p2" class="xp-text">0/100</span>
+                        <div class="xp-bar-bg">
+                            <div class="xp-bar-fill" id="xp-fill-p2" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="question-panel">
+                    <div class="question-text" id="q-p2">6 / 2 = ?</div>
+                    <div class="options-grid" id="opt-grid-p2">
+                        <div class="option-item">--</div>
+                        <div class="option-item">--</div>
+                        <div class="option-item">--</div>
+                        <div class="option-item">--</div>
+                    </div>
+                </div>
+            </div>
+            <canvas id="canvas-p2"></canvas>
+        </div>
+    </div>
+
+<script>
+/* =========================================================
+   AUDIO ENGINE (Web Audio API)
+   ========================================================= */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let bgmInterval;
+let isBgmPlaying = false;
+
+function playTone(freq, type, duration, vol=0.1) {
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+}
+
+const Audio = {
+    jump: () => playTone(400, 'sine', 0.2, 0.2),
+    smash: () => {
+        playTone(180, 'square', 0.1, 0.3);
+        setTimeout(() => playTone(100, 'sawtooth', 0.2, 0.3), 50);
+    },
+    crash: () => {
+        playTone(120, 'sawtooth', 0.5, 0.4);
+        playTone(60, 'square', 0.5, 0.4);
+    },
+    success: () => {
+        playTone(523.25, 'sine', 0.1, 0.1); 
+        setTimeout(() => playTone(659.25, 'sine', 0.15, 0.1), 100); 
+    },
+    win: () => {
+        const tones = [523.25, 659.25, 783.99, 1046.50]; 
+        tones.forEach((t, i) => {
+            setTimeout(() => playTone(t, 'sine', 0.3, 0.15), i * 150);
+        });
+    },
+    startBGM: () => {
+        if(isBgmPlaying) return;
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        isBgmPlaying = true;
+        document.getElementById('btn-bgm').innerText = '🎵';
+        
+        const melody = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63]; 
+        let step = 0;
+        bgmInterval = setInterval(() => {
+            if(!isBgmPlaying) return;
+            const freq = melody[step % melody.length];
+            playTone(freq, 'triangle', 0.25, 0.04);
+            step++;
+        }, 280);
+    },
+    stopBGM: () => {
+        isBgmPlaying = false;
+        clearInterval(bgmInterval);
+        document.getElementById('btn-bgm').innerText = '🔇';
+    }
+};
+
+function toggleBGM() {
+    if(isBgmPlaying) Audio.stopBGM();
+    else Audio.startBGM();
+}
+
+function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.log(`Gagal mengaktifkan mode Layar Penuh: ${err.message}`);
+        });
+    } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+    }
+}
+
+/* =========================================================
+   MATH GENERATOR (Berdasarkan Tabel Asli Gambar)
+   ========================================================= */
+class MathGen {
+    static get validProducts() {
+        return [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+            12, 14, 15, 16, 18, 20, 21, 24, 25, 27, 28, 30,
+            32, 35, 36, 40, 42, 45, 48, 49, 50, 54, 56, 60,
+            63, 64, 70, 72, 80, 81, 90, 100
+        ];
+    }
+
+    static generate() {
+        const isDiv = Math.random() > 0.5;
+        let qText, ans, difficulty;
+
+        const num1 = Math.floor(Math.random() * 10) + 1; 
+        const num2 = Math.floor(Math.random() * 10) + 1; 
+
+        if (isDiv) {
+            const product = num1 * num2;
+            qText = `${product} ÷ ${num1}`;
+            ans = num2; 
+
+            if ([1, 2, 5, 10].includes(num1)) {
+                difficulty = 'easy';
+            } else if ([3, 4, 6].includes(num1)) {
+                difficulty = 'medium';
+            } else {
+                difficulty = 'hard';
+            }
+        } else {
+            qText = `${num1} × ${num2}`;
+            ans = num1 * num2;
+
+            const maxFactor = Math.max(num1, num2);
+            if (maxFactor <= 2 || maxFactor === 5 || maxFactor === 10) {
+                difficulty = 'easy';
+            } else if (maxFactor <= 6) {
+                difficulty = 'medium';
+            } else {
+                difficulty = 'hard';
+            }
+        }
+
+        let choices = [ans];
+        while (choices.length < 4) {
+            let fake;
+            if (isDiv) {
+                fake = Math.floor(Math.random() * 10) + 1;
+            } else {
+                const possibleFakes = this.validProducts.filter(p => Math.abs(p - ans) <= 20 && p !== ans);
+                if (possibleFakes.length > 0) {
+                    fake = possibleFakes[Math.floor(Math.random() * possibleFakes.length)];
+                } else {
+                    fake = num1 * (num2 + (Math.random() > 0.5 ? 1 : -1));
+                }
+            }
+
+            if (fake > 0 && !choices.includes(fake)) {
+                choices.push(fake);
+            }
+        }
+
+        choices.sort(() => Math.random() - 0.5);
+
+        return {
+            text: qText,
+            answers: choices,
+            correctIdx: choices.indexOf(ans),
+            difficulty: difficulty
+        };
+    }
+}
+
+/* =========================================================
+   GAME RENDERING & LOGIC (CANVAS 3D SIMULATION)
+   ========================================================= */
+class GameInstance {
+    constructor(playerId, canvasId) {
+        this.playerId = playerId; 
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas.getContext('2d');
+        
+        this.screenEl = document.getElementById(`screen-p${playerId}`);
+        this.highScore = localStorage.getItem(`dinoHiScoreP${playerId}`) || 0;
+
+        this.reset();
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+
+        this.canvas.addEventListener('pointerdown', (e) => this.handleCanvasClick(e));
+    }
+
+    updateHUDText(id, text) {
+        const el = document.getElementById(id);
+        if (el) el.innerText = text;
+    }
+
+    reset() {
+        this.state = 'running'; 
+        this.score = 0; // representasi XP (0 sampai 100)
+        this.lives = 3; 
+        this.correct = 0;
+
+        this.updateLivesDisplay();
+        this.updateXPBar();
+        
+        this.dino = { lane: 1.5, yOffset: 0, scale: 1 }; 
+        this.targetLane = 1.5;
+        this.animFrame = 0;
+        
+        this.distance = 0; 
+        this.rocks = [];
+        this.particles = [];
+        
+        this.raindrops = Array.from({length: 120}, () => ({
+            x: Math.random(), 
+            y: Math.random(), 
+            speed: 0.045 + Math.random() * 0.035
+        }));
+
+        this.generateQuestion();
+    }
+
+    updateLivesDisplay() {
+        const liveEl = document.getElementById(`lives-p${this.playerId}`);
+        if (liveEl) {
+            liveEl.innerText = "❤️".repeat(this.lives) + "🖤".repeat(3 - this.lives);
+        }
+    }
+
+    updateXPBar() {
+        const fillEl = document.getElementById(`xp-fill-p${this.playerId}`);
+        const textEl = document.getElementById(`xp-text-p${this.playerId}`);
+        
+        if (fillEl) {
+            fillEl.style.width = `${this.score}%`;
+        }
+        if (textEl) {
+            textEl.innerText = `${this.score}/100`;
+        }
+    }
+
+    generateQuestion() {
+        this.currentMath = MathGen.generate();
+        document.getElementById(`q-p${this.playerId}`).innerText = this.currentMath.text + " = ?";
+        
+        const optGrid = document.getElementById(`opt-grid-p${this.playerId}`);
+        optGrid.innerHTML = '';
+        
+        // Buat elemen pilihan HTML yang interaktif dan dapat diklik secara akurat
+        for (let i = 0; i < 4; i++) {
+            const val = this.currentMath.answers[i];
+            const optItem = document.createElement('div');
+            optItem.className = 'option-item';
+            optItem.innerText = val;
+            
+            // Saat diklik, Dino langsung melompat ke lajur pilihan ini
+            optItem.addEventListener('click', (e) => {
+                e.stopPropagation(); // Mencegah klik ganda merambat ke canvas di bawahnya
+                this.moveToLane(i);
+            });
+            
+            optGrid.appendChild(optItem);
+        }
+        
+        this.rocks = [];
+        for(let i=0; i<4; i++) {
+            this.rocks.push({
+                lane: i,
+                z: 1.25, 
+                isCorrect: (i === this.currentMath.correctIdx),
+                difficulty: this.currentMath.difficulty,
+                broken: false
+            });
+        }
+    }
+
+    handleCanvasClick(e) {
+        if (this.state !== 'running') return;
+        if (gameMode === 'duel' && activePlayer !== this.playerId) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        
+        // DETEKSI KLIK LAJUR AKURAT:
+        const laneIdx = Math.floor((clickX / rect.width) * 4);
+        const safeLaneIdx = Math.max(0, Math.min(3, laneIdx));
+        
+        this.moveToLane(safeLaneIdx);
+    }
+
+    resize() {
+        this.canvas.width = this.screenEl.clientWidth;
+        this.canvas.height = this.screenEl.clientHeight;
+    }
+
+    moveToLane(laneIdx) {
+        if (this.state !== 'running') return;
+        this.targetLane = laneIdx;
+        this.state = 'jumping';
+        Audio.jump();
+    }
+
+    update() {
+        if (this.state === 'crashed') return;
+
+        this.animFrame += 0.1;
+        this.distance += 0.04; 
+
+        this.raindrops.forEach(r => {
+            r.y += r.speed;
+            if(r.y > 1) { r.y = 0; r.x = Math.random(); }
+        });
+
+        for(let i = this.particles.length-1; i>=0; i--) {
+            let p = this.particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.4; 
+            p.life--;
+            if(p.life <= 0) this.particles.splice(i, 1);
+        }
+
+        if (this.state === 'jumping') {
+            this.dino.lane += (this.targetLane - this.dino.lane) * 0.22;
+            const distToTarget = Math.abs(this.targetLane - this.dino.lane);
+            this.dino.yOffset = Math.sin((1 - (distToTarget/1.5)) * Math.PI) * -60; 
+
+            if (distToTarget < 0.1) {
+                this.dino.lane = this.targetLane;
+                this.checkCollision();
+            }
+        } else if (this.state === 'running' || this.state === 'success') {
+            this.dino.lane += (1.5 - this.dino.lane) * 0.08;
+            this.dino.yOffset = 0;
+        } else if (this.state === 'victory_dance') {
+            // Animasi melompat senang secara berkala (Victory Hopping)
+            this.dino.lane = 1.5; 
+            this.dino.yOffset = Math.abs(Math.sin(this.animFrame * 1.5)) * -80;
+        }
+
+        if (this.state === 'running') {
+            const self = this;
+            const speedModifier = 0.005; // Kecepatan meluncur batu konstan
+            this.rocks.forEach(r => {
+                if(!r.broken) {
+                    r.z -= speedModifier;
+                    if (r.z <= 0) {
+                        self.handlePenalty(); 
+                    }
+                }
+            });
+        }
+    }
+
+    checkCollision() {
+        const rock = this.rocks[this.targetLane];
+        
+        if (!rock) {
+            this.state = 'running';
+            this.targetLane = 1.5;
+            return;
+        }
+
+        if (rock.isCorrect) {
+            this.rocks.forEach(r => r.broken = true);
+            
+            this.score += 10; // Setiap jawaban benar mendapat tambahan 10 XP
+            this.correct++;
+            
+            this.updateXPBar();
+            
+            Audio.smash();
+            Audio.success();
+            this.createParticles(this.targetLane, rock.z);
+            
+            this.state = 'success';
+            this.targetLane = 1.5;
+
+            if (this.score >= 100) {
+                // DINASOUR MENANG: Aktifkan selebrasi melompat senang & tulisan Congratulations!
+                this.state = 'victory_dance';
+                setTimeout(() => showWin(this.score, this.playerId), 3000); 
+            } else {
+                setTimeout(() => {
+                    this.state = 'running';
+                    switchTurn(); 
+                    this.generateQuestion();
+                }, 800); 
+            }
+
+        } else {
+            this.handlePenalty();
+        }
+    }
+
+    handlePenalty() {
+        // PERBAIKAN: Izinkan penalti jika Dino sedang 'running' atau baru selesai 'jumping'
+        if (this.state !== 'running' && this.state !== 'jumping') return;
+        this.state = 'stumble'; // Set status visual Dino tersandung (pusing) sementara waktu
+
+        this.lives--;
+        this.updateLivesDisplay();
+        Audio.crash();
+        this.screenEl.classList.add('shake');
+        this.rocks.forEach(r => r.broken = true); 
+
+        setTimeout(() => {
+            this.screenEl.classList.remove('shake');
+        }, 500);
+
+        if (this.lives <= 0) {
+            this.crash();
+        } else {
+            this.targetLane = 1.5;
+            // Berikan jeda waktu tersandung 1 detik agar anak-anak melihat Dino pusing terlebih dahulu
+            setTimeout(() => {
+                this.state = 'running';
+                switchTurn(); 
+                this.generateQuestion();
+            }, 1000);
+        }
+    }
+
+    crash() {
+        this.state = 'crashed';
+        if (this.score > this.highScore) {
+            this.highScore = this.score;
+            localStorage.setItem(`dinoHiScoreP${this.playerId}`, this.highScore);
+        }
+
+        setTimeout(() => {
+            showGameOver(this.score, this.playerId);
+        }, 1000);
+    }
+
+    createParticles(lane, z = 0.2) {
+        const pInfo = this.get3DPos(lane, z);
+        for(let i=0; i<15; i++) {
+            this.particles.push({
+                x: pInfo.x,
+                y: pInfo.y,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 1) * 8,
+                color: '#5D4037',
+                life: 25 + Math.random()*15,
+                size: 4 + Math.random()*8
+            });
+        }
+    }
+
+    get3DPos(lane, z) {
+        const cw = this.canvas.width;
+        const ch = this.canvas.height;
+        const horizonY = ch * 0.4; 
+        
+        const scale = Math.max(0.01, 0.15 + (1 - z) * 0.85); 
+        const y = horizonY + (ch - horizonY) * (1 - z);
+        
+        const bottomX = (lane + 0.5) * (cw / 4);
+        const x = cw / 2 + (bottomX - cw / 2) * (1 - z);
+
+        return { x, y, scale };
+    }
+
+    draw() {
+        const ctx = this.ctx;
+        const cw = this.canvas.width;
+        const ch = this.canvas.height;
+
+        ctx.fillStyle = '#81C784'; 
+        ctx.fillRect(0, 0, cw, ch);
+        ctx.fillStyle = '#66BB6A'; 
+        ctx.fillRect(0, ch*0.4, cw, ch*0.6);
+
+        ctx.fillStyle = '#A1887F';
+        ctx.beginPath();
+        ctx.moveTo(cw*0.43, ch*0.4); 
+        ctx.lineTo(cw*0.57, ch*0.4); 
+        ctx.lineTo(cw, ch);         
+        ctx.lineTo(0, ch);          
+        ctx.fill();
+
+        ctx.strokeStyle = '#D7CCC8';
+        ctx.lineWidth = 2;
+        const lines = 4;
+        for(let i=0; i<=lines; i++) {
+            let zOffset = (this.distance + (i/lines)) % 1;
+            let p1 = this.get3DPos(0, zOffset);
+            ctx.beginPath();
+            ctx.moveTo(0, p1.y);
+            ctx.lineTo(cw, p1.y);
+            ctx.stroke();
+        }
+
+        // VISUALISASI GARIS FINISH 3D:
+        if (this.score >= 90) {
+            let finishZ = 1.0 - ((this.score - 90) / 10);
+            if (this.score >= 100) {
+                finishZ = 0.08; 
+            }
+            
+            const leftPos = this.get3DPos(-0.5, finishZ);
+            const rightPos = this.get3DPos(3.5, finishZ);
+            const trackWidth3D = rightPos.x - leftPos.x;
+            const hThickness = 20 * leftPos.scale;
+            
+            // Menggambar pita dasar putih
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(leftPos.x, leftPos.y - hThickness);
+            ctx.lineTo(rightPos.x, rightPos.y - hThickness);
+            ctx.lineTo(rightPos.x, rightPos.y + hThickness);
+            ctx.lineTo(leftPos.x, leftPos.y + hThickness);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Menggambar kotak-kotak hitam (checkered flag)
+            ctx.fillStyle = '#000000';
+            const numBlocks = 12;
+            for (let b = 0; b < numBlocks; b++) {
+                if (b % 2 === 0) {
+                    const startX = leftPos.x + (trackWidth3D / numBlocks) * b;
+                    const endX = leftPos.x + (trackWidth3D / numBlocks) * (b + 1);
+                    ctx.beginPath();
+                    ctx.moveTo(startX, leftPos.y - hThickness);
+                    ctx.lineTo(endX, rightPos.y - hThickness);
+                    ctx.lineTo(endX, rightPos.y + hThickness);
+                    ctx.lineTo(startX, leftPos.y + hThickness);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+        }
+
+        let sortedRocks = [...this.rocks].sort((a,b) => b.z - a.z);
+        sortedRocks.forEach(rock => {
+            if(rock.broken) return;
+            const pos = this.get3DPos(rock.lane, rock.z);
+            
+            let difficultyScale = 1.0;
+            if (rock.difficulty === 'easy') {
+                difficultyScale = 0.8; 
+            } else if (rock.difficulty === 'hard') {
+                difficultyScale = 1.3; 
+            }
+
+            const size = 65 * pos.scale * 2 * difficultyScale;
+
+            ctx.fillStyle = '#5D4037';
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, size/2, 0, Math.PI*2);
+            ctx.fill();
+            
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.beginPath();
+            ctx.ellipse(pos.x, pos.y + size/2.3, size/1.8, size/6, 0, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#4E342E';
+            ctx.lineWidth = 2 * pos.scale;
+            ctx.beginPath();
+            ctx.moveTo(pos.x - size/4, pos.y - size/8);
+            ctx.lineTo(pos.x + size/4, pos.y + size/8);
+            ctx.moveTo(pos.x - size/8, pos.y + size/4);
+            ctx.lineTo(pos.x + size/8, pos.y - size/4);
+            ctx.stroke();
+        });
+
+        this.particles.forEach(p => {
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y, p.size, p.size);
+        });
+
+        const dinoPos = this.get3DPos(this.dino.lane, 0.08);
+        const dSize = 85 * dinoPos.scale * 2.5;
+        const dx = dinoPos.x;
+        const dy = dinoPos.y + this.dino.yOffset;
+
+        ctx.save();
+        ctx.translate(dx, dy);
+        
+        // ANIMASI TRANSISI VISUAL JIKA TERJADI KESALAHAN JAWABAN (TERSANDUNG/PUSING)
+        if (this.state === 'crashed') {
+            ctx.rotate(Math.PI / 2); 
+            ctx.translate(0, -dSize/2);
+        } else if (this.state === 'stumble') {
+            // Rotasi miring ke depan melambangkan tersandung batu
+            ctx.rotate(Math.PI / 6); 
+            ctx.translate(0, -dSize/5);
+        }
+
+        ctx.fillStyle = '#4CAF50';
+        ctx.beginPath();
+        ctx.roundRect(-dSize/3, -dSize, dSize/1.5, dSize, dSize/4);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.arc(0, -dSize, dSize/2.5, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(dSize/4, -dSize*0.9, dSize/3, 0, Math.PI*2);
+        ctx.fill();
+        
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(dSize/5, -dSize*1.1, dSize/8, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Atur mata Dino berdasarkan status
+        if (this.state === 'victory_dance') {
+            // GAMBAR MATA BAHAGIA (^ ^)
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 4 * dinoPos.scale;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            // Mata kiri tersenyum
+            ctx.arc(dSize/5, -dSize*1.1, dSize/12, Math.PI, 0, false);
+            // Mata kanan tersenyum
+            ctx.arc(dSize/2.8, -dSize*1.1, dSize/12, Math.PI, 0, false);
+            ctx.stroke();
+        } else {
+            // Ubah warna bola mata menjadi merah cerah jika pusing/menabrak
+            ctx.fillStyle = (this.state === 'crashed' || this.state === 'stumble') ? 'red' : 'black';
+            ctx.beginPath();
+            ctx.arc(dSize/4, -dSize*1.1, dSize/16, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        ctx.fillStyle = '#388E3C';
+        for(let s=0; s<3; s++) {
+            ctx.beginPath();
+            ctx.moveTo(-dSize/3, -dSize*0.8 + (s*dSize/3));
+            ctx.lineTo(-dSize/1.5, -dSize*0.7 + (s*dSize/3));
+            ctx.lineTo(-dSize/3, -dSize*0.6 + (s*dSize/3));
+            ctx.fill();
+        }
+
+        ctx.fillStyle = '#2E7D32';
+        let legSwing = (this.state === 'running') ? Math.sin(this.animFrame) * dSize/5 : 0;
+        ctx.fillRect(-dSize/4, -dSize/10, dSize/6, dSize/4 + legSwing); 
+        ctx.fillRect(dSize/10, -dSize/10, dSize/6, dSize/4 - legSwing); 
+
+        // GAMBAR BINTANG-BINTANG PUSING DI ATAS KEPALA DINO JIKA SEDANG TERSANDUNG
+        if (this.state === 'stumble') {
+            ctx.fillStyle = '#FFC107'; // Kuning emas bercahaya
+            const rotateSpeed = Date.now() * 0.015;
+            for (let s = 0; s < 3; s++) {
+                const angle = rotateSpeed + s * (Math.PI * 2 / 3);
+                const starX = Math.sin(angle) * (dSize * 0.25);
+                const starY = -dSize * 1.35 + Math.cos(angle) * (dSize * 0.08);
+                
+                ctx.beginPath();
+                ctx.arc(starX, starY, dSize * 0.04, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        ctx.restore();
+
+        // TULISAN TANTANGAN "CONGRATULATIONS!" BERNYANYI DI ATAS KEPALA SAAT MENANG
+        if (this.state === 'victory_dance') {
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            ctx.shadowBlur = 8;
+            ctx.font = '900 2.5rem "Nunito", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Efek gelombang mengambang pada teks
+            const textY = ch * 0.25 + Math.sin(Date.now() * 0.008) * 15;
+            const textScale = 1.0 + Math.abs(Math.sin(Date.now() * 0.005)) * 0.15;
+
+            ctx.translate(cw / 2, textY);
+            ctx.scale(textScale, textScale);
+
+            // Gradien teks pelangi / emas
+            const textGrad = ctx.createLinearGradient(-150, 0, 150, 0);
+            textGrad.addColorStop(0, '#FFD700'); // Emas
+            textGrad.addColorStop(0.5, '#FF8C00'); // Oranye gelap
+            textGrad.addColorStop(1, '#FFD700');
+
+            ctx.fillStyle = textGrad;
+            ctx.strokeStyle = '#1B5E20';
+            ctx.lineWidth = 6;
+            ctx.strokeText("CONGRATULATIONS!", 0, 0);
+            ctx.fillText("CONGRATULATIONS!", 0, 0);
+            ctx.restore();
+        }
+
+        ctx.strokeStyle = 'rgba(156, 192, 255, 0.6)';
+        ctx.lineWidth = 1.5;
+        this.raindrops.forEach(r => {
+            ctx.beginPath();
+            ctx.moveTo(r.x * cw, r.y * ch);
+            ctx.lineTo(r.x * cw - 8, r.y * ch + 20);
+            ctx.stroke();
+        });
+    }
+}
+
+/* =========================================================
+   GAME CONTROLLER
+   ========================================================= */
+let gameMode = 'none';
+let p1Game, p2Game;
+let animationId;
+let activePlayer = 1; 
+
+function startGame(mode) {
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    Audio.startBGM();
+
+    document.getElementById('main-menu').classList.add('hidden');
+    document.getElementById('game-container').style.display = 'flex';
+    
+    gameMode = mode;
+    activePlayer = 1; 
+    
+    if (mode === 'solo') {
+        document.getElementById('screen-p1').classList.remove('hidden');
+        document.getElementById('screen-p2').classList.add('hidden');
+        p1Game = new GameInstance(1, 'canvas-p1');
+    } else {
+        document.getElementById('screen-p1').classList.remove('hidden');
+        document.getElementById('screen-p2').classList.remove('hidden');
+        p1Game = new GameInstance(1, 'canvas-p1');
+        p2Game = new GameInstance(2, 'canvas-p2');
+    }
+
+    updateTurnIndicators();
+
+    if (animationId) cancelAnimationFrame(animationId);
+    gameLoop();
+}
+
+function gameLoop() {
+    if (p1Game) {
+        if (gameMode === 'solo' || activePlayer === 1) {
+            p1Game.update();
+        }
+        p1Game.draw(); 
+    }
+    if (gameMode === 'duel' && p2Game) {
+        if (activePlayer === 2) {
+            p2Game.update();
+        }
+        p2Game.draw(); 
+    }
+    animationId = requestAnimationFrame(gameLoop);
+}
+
+function switchTurn() {
+    if (gameMode !== 'duel') return;
+    
+    if (p1Game.lives <= 0 && p2Game.lives <= 0) return;
+    
+    if (activePlayer === 1) {
+        if (p2Game.lives > 0) {
+            activePlayer = 2;
+        }
+    } else {
+        if (p1Game.lives > 0) {
+            activePlayer = 1;
+        }
+    }
+    
+    updateTurnIndicators();
+}
+
+function updateTurnIndicators() {
+    if (gameMode !== 'duel') {
+        document.getElementById('screen-p1').classList.remove('inactive');
+        document.getElementById('screen-p2').classList.remove('inactive');
+        return;
+    }
+    
+    if (activePlayer === 1) {
+        document.getElementById('screen-p1').classList.remove('inactive');
+        document.getElementById('screen-p2').classList.add('inactive');
+        document.getElementById('ind-p1').innerText = "P1 - GILIRANMU! 🌟";
+        document.getElementById('ind-p2').innerText = "P2 - MENUNGGU ⏳";
+    } else {
+        document.getElementById('screen-p1').classList.add('inactive');
+        document.getElementById('screen-p2').classList.remove('inactive');
+        document.getElementById('ind-p1').innerText = "P1 - MENUNGGU ⏳";
+        document.getElementById('ind-p2').innerText = "P2 - GILIRANMU! 🌟";
+    }
+}
+
+window.addEventListener('keydown', (e) => {
+    const key = e.key.toLowerCase();
+    
+    if (p1Game && (gameMode === 'solo' || activePlayer === 1)) {
+        if(key === 'a') p1Game.moveToLane(0);
+        if(key === 's') p1Game.moveToLane(1);
+        if(key === 'd') p1Game.moveToLane(2);
+        if(key === 'f') p1Game.moveToLane(3);
+    }
+    
+    if (p2Game && gameMode === 'duel' && activePlayer === 2) {
+        if(key === 'j') p2Game.moveToLane(0);
+        if(key === 'k') p2Game.moveToLane(1);
+        if(key === 'l') p2Game.moveToLane(2);
+        if(key === ';') p2Game.moveToLane(3);
+    }
+});
+
+/* =========================================================
+   UI STATE MANAGEMENT
+   ========================================================= */
+let overCount = 0;
+
+function showGameOver(score, playerId) {
+    if (gameMode === 'solo') {
+        document.getElementById('over-title').innerText = "Yah, Kalah! 💥";
+        document.getElementById('over-title').style.color = 'var(--danger)';
+        document.getElementById('final-score').innerText = `${score}/100 XP`;
+        document.getElementById('game-over-msg').innerText = "Jangan menyerah! Ayo coba lagi dan latih kemampuan berhitung perkalian & pembagianmu.";
+        document.getElementById('game-over-menu').classList.remove('hidden');
+    } else {
+        if (p1Game.lives <= 0 && p2Game.lives <= 0) { 
+            let p1Score = p1Game.score;
+            let p2Score = p2Game.score;
+            let msg = p1Score > p2Score ? "Player 1 Menang Balapan! 🏆" : (p2Score > p1Score ? "Player 2 Menang Balapan! 🏆" : "Skor Seri! 🤝");
+            
+            document.getElementById('over-title').innerText = "Balapan Selesai!";
+            document.getElementById('over-title').style.color = 'var(--secondary)';
+            document.getElementById('final-score').innerText = `P1: ${p1Score}/100 XP | P2: ${p2Score}/100 XP`;
+            document.getElementById('game-over-msg').innerText = msg;
+            document.getElementById('game-over-menu').classList.remove('hidden');
+            
+            if (p1Game.state !== 'crashed') p1Game.state = 'crashed';
+            if (p2Game.state !== 'crashed') p2Game.state = 'crashed';
+        } else {
+            switchTurn();
+        }
+    }
+}
+
+function showWin(score, playerId) {
+    Audio.win();
+    if (gameMode === 'solo') {
+        document.getElementById('over-title').innerText = "CONGRATULATIONS! 🎉";
+        document.getElementById('over-title').style.color = 'var(--primary-dark)';
+        document.getElementById('final-score').innerText = `${score}/100 XP`;
+        document.getElementById('game-over-msg').innerText = "Luar biasa! Kamu berhasil melompati semua tantangan dan menyelesaikan balapan dengan nilai sempurna!";
+        document.getElementById('game-over-menu').classList.remove('hidden');
+    } else {
+        let msg = `Player ${playerId} berhasil menjawab 10 soal dengan benar & mencapai garis finish terlebih dahulu! 🎉🏆`;
+        document.getElementById('over-title').innerText = "CONGRATULATIONS! 🎉";
+        document.getElementById('over-title').style.color = 'var(--primary-dark)';
+        document.getElementById('final-score').innerText = `P1: ${p1Game.score}/100 XP | P2: ${p2Game.score}/100 XP`;
+        document.getElementById('game-over-msg').innerText = msg;
+        document.getElementById('game-over-menu').classList.remove('hidden');
+        
+        if (p1Game.state !== 'crashed') p1Game.state = 'crashed';
+        if (p2Game.state !== 'crashed') p2Game.state = 'crashed';
+    }
+}
+
+function restartGame() {
+    document.getElementById('game-over-menu').classList.add('hidden');
+    overCount = 0;
+    if(p1Game) p1Game.reset();
+    if(p2Game) p2Game.reset();
+    activePlayer = 1;
+    updateTurnIndicators();
+}
+
+function backToMenu() {
+    cancelAnimationFrame(animationId);
+    document.getElementById('game-over-menu').classList.add('hidden');
+    document.getElementById('game-container').style.display = 'none';
+    document.getElementById('main-menu').classList.remove('hidden');
+    p1Game = null;
+    p2Game = null;
+    overCount = 0;
+}
+</script>
+</body>
+</html>
